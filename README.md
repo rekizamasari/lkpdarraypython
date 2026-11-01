@@ -85,6 +85,29 @@ python -m http.server 8000
 - **Rincian**: 50 riwayat praktik/kuis terakhir.
 - **Realtime**: saat siswa mengirim praktik/kuis, dashboard pil cukup otomatis (tanpa refresh).
 
+## 👥 Kapasitas: bisa dipakai 40+ siswa bersamaan?
+
+**Ya.** Ini alasan teknisnya:
+
+| Komponen | Kenapa tahan ramai |
+|---|---|
+| Kode Python (Pyodide) | Berjalan di **browser masing-masing siswa** — tidak ada server yang makin terbebani bila siswa bertambah |
+| Halaman (GitHub Pages) | Melayani lewat **CDN global** — desain untuk ribuan pengunjung serempak |
+| Supabase Free | Postgres sanggup mengantrikan 40–50 koneksi; tulisan siswa hanya tabel kecil (nilai, progres) |
+| Realtime dashboard | 1 jendela guru = 1 channel, jauh di bawah batas gratisan |
+
+Yang **dilakukan untuk 40 siswa membuka bersamaan**:
+- Pyodide **tidak diunduh saat halaman dibuka** — hanya saat siswa pertama kali menekan ▶️ Jalankan/Kirim, dan **tersimpan di cache browser** (unduhan kedua dst = 0 MB).
+- Dashboard guru menyediakan tombol 🔄 **Refresh** manual dan **auto-refresh tiap 90 detik** sebagai cadangan bila koneksi Realtime terputus.
+- Kueri dashboard digabung (`Promise.all`) supaya 1 refresh hanya memakan 3 request.
+
+### Deploy di GitHub Pages (opsional tapi disarankan)
+1. GitHub repo ini → **Settings → Pages**
+2. Source: deploy dari branch `master` / folder `/ (root)` → Save
+3. URL kelas: `https://<username>.github.io/lkpdarraypython/`
+4. Siswa cukup buka URL itu di Chrome — tidak perlu install apa-apa.
+5. `js/supabase-config.js` harus sudah diisi kredensial sebelum dipakai kelas.
+
 ## 💡 Catatan
 - Kode siswa dijalankan **di browser masing-masing** (Pyodide), jadi tidak membebani server.
 - CDN internet diperlukan (Supabase JS, Pyodide, Chart.js).

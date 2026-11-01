@@ -216,7 +216,7 @@ window.jalankan = async (id) => {
   const out = $("out-" + id);
   if (id.endsWith("-p")) kodeAwal[id] = kodeAwal[id] || kode;
   out.className = "output-box";
-  out.textContent = "⏳ Menjalankan…";
+  out.textContent = pyodide ? "⏳ Menjalankan…" : "⏳ Menyiapkan Python di browser (hanya sekali, ±10–20 detik)…";
   try {
     const py = await muatPyodide();
     let hasil = "";

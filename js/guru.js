@@ -40,8 +40,17 @@ document.querySelectorAll(".tab-btn").forEach(b => {
 })();
 
 $g("btn-logout").onclick = doLogout;
+$g("btn-refresh").onclick = async () => {
+  const b = $g("btn-refresh");
+  b.disabled = true; b.textContent = "⏳ Memuat…";
+  await refreshSemua();
+  b.disabled = false; b.textContent = "🔄 Refresh";
+};
 $g("filter-kelas").onchange = () => tampilkan(semuaData);
 $g("btn-csv").onclick = unduhCSV;
+
+/* Cadangan: refresh ringan tiap 90 detik sesaat realtime bermasalah */
+setInterval(() => { refreshSemua(); }, 90000);
 
 /* ---------- DATA ---------- */
 async function muatKelas() {

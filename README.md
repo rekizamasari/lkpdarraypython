@@ -50,7 +50,7 @@ const SUPABASE_URL = "https://xxxxx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOi..."; // anon public key (Settings → API)
 ```
 
-### 3. Jalankan aplikasi
+### 6. Jalankan aplikasi
 Cukup lucu: file web statis — bukan perlu "build". Jalankan dengan HTTP lokal agar browser tidak membatasi CDN:
 
 ```bash
@@ -60,15 +60,29 @@ python -m http.server 8000
 ```
 (atau gunakan ekstensi *Live Server* VS Code)
 
-### 4. Buat akun
-- **Siswa**: klik *Daftar sebagai siswa* di halaman login (pilih kelas X-A/X-B).
-- **Guru**: daftarkan via **Authentication → Users → Add user** di dashboard Supabase (email + password, konfirmasi langsung), lalu set rolenya via SQL Editor:
+### 4. Nonaktifkan konfirmasi email (WAJIB — siswa tidak pakai email)
+Dashboard Supabase → **Authentication → Sign In / Providers** → **Email** →
+matikan toggle **"Confirm email"** → **Save**.
+
+> Dengan ini siswa cukup daftar **NISN + nama + kelas + sandi** tanpa email.
+> Di belakang layar, aplikasi memap NISN ke email internal
+> `nisn.<NISN>@siswa.lkpd.local` — siswa tidak pernah merasakannya.
+
+### 5. Buat akun
+- **Siswa**: halaman login → tab 🎓 **Siswa** → *Daftar sebagai siswa* → isi NISN, nama, kelas, sandi → selesai (tanpa email!).
+- **Guru**: login tetap dengan **email** (tab 👨‍🏫 Guru). Buat via **Authentication → Users → Add user** di dashboard Supabase (email + password, konfirmasi langsung), lalu set rolenya via SQL Editor:
   ```sql
   update public.profiles
   set role = 'guru', nama = 'Nama Guru Anda'
   where id = '<UUID user yang baru dibuat>';
   ```
-  Setelah itu login dengan email tersebut → otomatis masuk ke dashboard guru.
+  Jika `update` menyatakan `0 rows`, buat baris profilnya dulu:
+  ```sql
+  insert into public.profiles (id, nama, role)
+  values ('<UUID>', 'Nama Guru Anda', 'guru')
+  on conflict (id) do nothing;
+  ```
+  Setelah itu login dengan email tersebut → otomatis masuk ke dashboard guru. NISN siswa dibuat **unik** di level database.
 
 ---
 

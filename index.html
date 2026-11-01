@@ -16,9 +16,16 @@
       Koding &amp; Kecerdasan Artifisial — Kelas X</p>
     </div>
 
+    <!-- ==== TAB PERAN ==== -->
+    <div class="tab-bar" style="margin-bottom:6px">
+      <button class="tab-btn aktif" id="tab-siswa" type="button">🎓 Siswa</button>
+      <button class="tab-btn" id="tab-guru" type="button">👨‍🏫 Guru</button>
+    </div>
+
+    <!-- ==== FORM LOGIN SISWA (NISN) ==== -->
     <div id="login-form">
-      <label>Email</label>
-      <input type="email" id="login-email" placeholder="email@email.com" autocomplete="username" />
+      <label>NISN / NIS</label>
+      <input type="text" id="login-nisn" inputmode="numeric" placeholder="contoh: 0065432198" autocomplete="username" />
       <label>Kata Sandi</label>
       <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
       <button id="btn-login" class="btn btn-primary full">🔓 Masuk</button>
@@ -28,15 +35,24 @@
       </div>
     </div>
 
+    <!-- ==== FORM LOGIN GURU (EMAIL) ==== -->
+    <div id="login-form-guru" hidden>
+      <label>Email Guru</label>
+      <input type="email" id="guru-email" placeholder="guru@sekolah.sch.id" autocomplete="username" />
+      <label>Kata Sandi</label>
+      <input type="password" id="guru-pass" placeholder="••••••••" autocomplete="current-password" />
+      <button id="btn-login-guru" class="btn btn-primary full">🔓 Masuk</button>
+      <div class="demo-row muted">Akun guru dibuat via Supabase Dashboard oleh admin sekolah.</div>
+    </div>
+
+    <!-- ==== FORM PENDAFTARAN SISWA ==== -->
     <div id="daftar-form" hidden>
+      <label>NISN / NIS</label>
+      <input type="text" id="daftar-nis" inputmode="numeric" placeholder="contoh: 0065432198" />
       <label>Nama Lengkap</label>
       <input type="text" id="daftar-nama" placeholder="Nama Anda" />
-      <label>NIS (nomor induk siswa)</label>
-      <input type="text" id="daftar-nis" placeholder="cth: 20240001" />
       <label>Kelas</label>
       <select id="daftar-kelas"></select>
-      <label>Email</label>
-      <input type="email" id="daftar-email" placeholder="email@email.com" />
       <label>Kata Sandi (min. 6 karakter)</label>
       <input type="password" id="daftar-pass" placeholder="••••••••" />
       <button id="btn-daftar" class="btn btn-primary full">✅ Daftar</button>
@@ -55,10 +71,24 @@
 const sb = initSupabase();
 const $ = (id) => document.getElementById(id);
 
-// tint kelas ke dropdown
+/** pilih peran: siswa vs guru */
+function pilihPeran(peran) {
+  const siswa = peran === "siswa";
+  $("tab-siswa").classList.toggle("aktif", siswa);
+  $("tab-guru").classList.toggle("aktif", !siswa);
+  $("login-form").hidden = !siswa;
+  $("login-form-guru").hidden = siswa;
+  $("daftar-form").hidden = true;
+  $("pesan").hidden = true;
+}
+$("tab-siswa").onclick = () => pilihPeran("siswa");
+$("tab-guru").onclick  = () => pilihPeran("guru");
+
+// muat daftar kelas (policy kelas_read sudah using(true), jadi bisa dibaca
+// sebelum login)
 (async () => {
   const { data } = await sb.from("kelas").select("nama").order("nama");
-  $("daftar-kelas").innerHTML = (data || [{ nama: "X-A" }])
+  $("daftar-kelas").innerHTML = (data && data.length ? data : [{ nama: "X-A" }])
     .map((k) => `<option>${k.nama}</option>`).join("");
 })();
 
@@ -69,39 +99,73 @@ function tampilPesan(teks, sukses = false) {
   p.hidden = false;
 }
 
-$("link-daftar").onclick = (e) => { e.preventDefault(); $("login-form").hidden = true; $("daftar-form").hidden = false; $("pesan").hidden = true; };
-$("link-login").onclick  = (e) => { e.preventDefault(); $("daftar-form").hidden = true; $("login-form").hidden = false; $("pesan").hidden = true; };
+$("link-daftar").onclick = (e) => {
+  e.preventDefault();
+  $("login-form").hidden = true; $("login-form-guru").hidden = true;
+  $("daftar-form").hidden = false; $("pesan").hidden = true;
+};
+$("link-login").onclick = (e) => {
+  e.preventDefault();
+  $("daftar-form").hidden = true;
+  pilihPeran($("tab-siswa").classList.contains("aktif") ? "siswa" : "guru");
+};
 
+/* ---------- LOGIN SISWA: NISN + sandi ---------- */
 $("btn-login").onclick = async () => {
-  const email = $("login-email").value.trim(), pass = $("login-pass").value;
-  if (!email || !pass) return tampilPesan("Email dan kata sandi harus diisi.");
+  const nisn = $("login-nisn").value.trim(), pass = $("login-pass").value;
+  if (!nisn || !pass) return tampilPesan("NISN dan kata sandi harus diisi.");
   $("btn-login").disabled = true; $("btn-login").textContent = "Memeriksa…";
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: nisnKeEmail(nisn), password: pass
+  });
   if (error) {
     $("btn-login").disabled = false; $("btn-login").textContent = "🔓 Masuk";
+    const pesan = error.message.includes("Email not confirmed")
+      ? "Akun Anda belum dikonfirmasi._hubungi guru. (Panjang konfirmasi email di Supabase → Authentication → Sign In / Providers dimatikan)"
+      : error.message.includes("Invalid") || error.message.includes("Signups not")
+        ? "NISN atau kata sandi salah / belum terdaftar."
+        : error.message;
+    return tampilPesan(pesan);
+  }
+  window.location.replace("siswa.html");
+};
+
+/* ---------- LOGIN GURU: email + sandi ---------- */
+$("btn-login-guru").onclick = async () => {
+  const email = $("guru-email").value.trim(), pass = $("guru-pass").value;
+  if (!email || !pass) return tampilPesan("Email dan kata sandi harus diisi.");
+  $("btn-login-guru").disabled = true; $("btn-login-guru").textContent = "Memeriksa…";
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    $("btn-login-guru").disabled = false; $("btn-login-guru").textContent = "🔓 Masuk";
     return tampilPesan("Login gagal: " + ("Email not confirmed" === error.message ? "silakan cek email dan konfirmasi dulu" : error.message));
   }
   const { data: prof } = await sb.from("profiles").select("role").eq("id", data.user.id).single();
   window.location.replace(prof && prof.role === "guru" ? "guru.html" : "siswa.html");
 };
 
+/* ---------- DAFTAR SISWA: NISN + nama + kelas + sandi ---------- */
 $("btn-daftar").onclick = async () => {
-  const nama = $("daftar-nama").value.trim(),
-        nis  = $("daftar-nis").value.trim(),
+  const nis  = $("daftar-nis").value.trim(),
+        nama = $("daftar-nama").value.trim(),
         kls  = $("daftar-kelas").value,
-        mail = $("daftar-email").value.trim(),
         pass = $("daftar-pass").value;
-  if (!nama || !mail || pass.length < 6) return tampilPesan("Nama, email, dan sandi (min 6 karakter) wajib diisi.");
+  if (!/^\d{4,12}$/.test(nis))   return tampilPesan("NISN harus angka 4–12 digit.");
+  if (!nama)                     return tampilPesan("Nama lengkap harus diisi.");
+  if (pass.length < 6)           return tampilPesan("Kata sandi minimal 6 karakter.");
   $("btn-daftar").disabled = true; $("btn-daftar").textContent = "Mendaftarkan…";
   const { error } = await sb.auth.signUp({
-    email: mail, password: pass,
+    email: nisnKeEmail(nis), password: pass,
     options: { data: { nama, nis, kelas: kls, role: "siswa" } }
   });
   if (error) {
     $("btn-daftar").disabled = false; $("btn-daftar").textContent = "✅ Daftar";
-    return tampilPesan("Gagal daftar: " + (error.message.includes("already") ? "email sudah terdaftar" : error.message));
+    if (error.message.includes("already registered") || error.message.includes("already exists"))
+      return tampilPesan("NISN ini sudah terdaftar — langsung login saja ya.");
+    return tampilPesan("Gagal daftar: " + error.message);
   }
-  tampilPesan("Akun dibuat! Jika diminta, klik tautan konfirmasi yang dikirim ke email Anda, lalu kembali ke halaman ini untuk login.", true);
+  tampilPesan("✅ Pendaftaran berhasil! Login dengan NISN & sandi Anda.", true);
+  setTimeout(() => { $("daftar-form").hidden = true; pilihPeran("siswa"); }, 1500);
 };
 </script>
 </body>

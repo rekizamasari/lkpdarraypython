@@ -32,6 +32,17 @@ async function doLogout() {
   window.location.replace("index.html");
 }
 
+/**
+ * Map NISN siswa → "email internal" untuk Supabase Auth.
+ * Siswa tidak pernah ketahuan email ini; form pendaftaran/login
+ * cukup pakai NISN. Guru tetap pakai email asli.
+ */
+function nisnKeEmail(nisn) {
+  return `nisn.${String(nisn).trim()}@siswa.lkpd.local`;
+}
+/** Apakah nilai itu berasal dari NISN siswa (bukan email guru asli)? */
+function apakahEmailGuru(x) { return !String(x || "").toLowerCase().endsWith("@siswa.lkpd.local"); }
+
 /** Format tanggal-jam Indonesia singkat untuk tabel. */
 function fmtWaktu(iso) {
   if (!iso) return "-";

@@ -61,6 +61,14 @@ create index if not exists idx_progress_student on public.progress(student_id);
 create index if not exists idx_sub_student     on public.submissions(student_id, module_id);
 create index if not exists idx_quiz_student    on public.quiz_results(student_id, module_id);
 
+-- NISN harus unik di antara siswa (jaga-jaga jika ada akun dibuat manual
+-- via dashboard). Guru boleh punya NIS kosong → NULL tidak dianggap duplikat.
+do $$
+begin
+  alter table public.profiles add constraint profiles_nis_unique unique (nis);
+exception when duplicate_object then null; -- sudah ada, abaikan
+end $$;
+
 -- =====================================================================
 -- ROW LEVEL SECURITY
 -- =====================================================================

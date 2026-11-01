@@ -6,7 +6,7 @@
  *   3. Salin "Project URL" dan "anon public key" ke sini
  * ===================================================================== */
 const SUPABASE_URL = "https://bgxzarmkpwhiweovbsyh.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_k2xNl0Mh716dVPDOv7cw8A_U6CYJJZc";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJneHphcm1rcHdoaXdlb3Zic3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDI1MjMsImV4cCI6MjEwOTExODUyM30.bRseqAFNO-cXE7MsJ1Lb8DGRnL7Zw9fV3nYHIFVqA08";
 
 // ---------------------------------------------------------------------------
 // Profil guru default yang dibuat via SQL (lihat README bagian 6).

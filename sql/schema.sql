@@ -72,11 +72,16 @@ alter table public.quiz_results  enable row level security;
 
 -- PROFILES: semua login boleh baca; siswa hanya edit profil sendiri;
 -- guru boleh baca semua profil
-create policy "profiles_read_all"   on public.profiles for select using (auth.role() = 'authenticated');
+drop policy if exists "profiles_read_all"     on public.profiles;
+drop policy if exists "profiles_self_upsert"  on public.profiles;
+drop policy if exists "profiles_self_update"  on public.profiles;
+create policy "profiles_read_all"    on public.profiles for select using (auth.role() = 'authenticated');
 create policy "profiles_self_upsert" on public.profiles for insert  with check (auth.uid() = id);
 create policy "profiles_self_update" on public.profiles for update using (auth.uid() = id);
 
 -- KELAS: semua login boleh baca, guru boleh tulis
+drop policy if exists "kelas_read"  on public.kelas;
+drop policy if exists "kelas_write" on public.kelas;
 create policy "kelas_read"  on public.kelas for select using (auth.role() = 'authenticated');
 create policy "kelas_write" on public.kelas for all    using (
   exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'guru')
@@ -84,13 +89,20 @@ create policy "kelas_write" on public.kelas for all    using (
 
 -- PROGRESS / SUBMISSIONS / QUIZ: siswa tulis miliknya, semua baca
 -- (guru butuh baca untuk dashboard analitik)
+drop policy if exists "progress_read"  on public.progress;
+drop policy if exists "progress_write" on public.progress;
+drop policy if exists "progress_upd"   on public.progress;
 create policy "progress_read" on public.progress for select using (auth.role() = 'authenticated');
 create policy "progress_write" on public.progress for insert with check (auth.uid() = student_id);
 create policy "progress_upd"   on public.progress for update using (auth.uid() = student_id);
 
+drop policy if exists "sub_read"  on public.submissions;
+drop policy if exists "sub_write" on public.submissions;
 create policy "sub_read"  on public.submissions for select using (auth.role() = 'authenticated');
 create policy "sub_write" on public.submissions for insert with check (auth.uid() = student_id);
 
+drop policy if exists "quiz_read"  on public.quiz_results;
+drop policy if exists "quiz_write" on public.quiz_results;
 create policy "quiz_read"  on public.quiz_results for select using (auth.role() = 'authenticated');
 create policy "quiz_write" on public.quiz_results for insert with check (auth.uid() = student_id);
 
@@ -109,7 +121,7 @@ begin
     coalesce(new.raw_user_meta_data->>'role', 'siswa'),
     (select k.id from public.kelas k
       where k.nama = coalesce(new.raw_user_meta_data->>'kelas', 'X-A')
-      on conflict do nothing) -- kelas harus sudah ada (lihat seed di bawah)
+      limit 1)
   on conflict (id) do nothing;
   return new;
 end;

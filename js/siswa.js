@@ -81,8 +81,26 @@ function nilaiModul(m) {
   return { praktik, kuis, akhir: Math.round(p) };
 }
 
+/* ---------- GERBANG MODUL BERANTAI ----------
+   Modul 1 selalu terbuka; modul N hanya terbuka setelah modul N-1
+   selesai (praktik & kuis terkirim). Kuis Akhir butuh kelima modul. */
+function modulSelesai(m) {
+  const n = nilaiSaya[m.id] || {};
+  return n.praktik !== undefined && n.kuis !== undefined;
+}
+function modulTerbuka(m) {
+  const idx = MODUL.findIndex(x => x.id === m.id);
+  if (idx === 0) return true;
+  return modulSelesai(MODUL[idx - 1]);
+}
+function modulPrasyarat(m) {
+  const idx = MODUL.findIndex(x => x.id === m.id);
+  return MODUL[idx - (idx === 0 ? 0 : 1)] || m;   // modul sebelumnya
+}
+
 function renderModul() {
   $("daftar-modul").innerHTML = MODUL.map(m => {
+    const terbuka = modulTerbuka(m);
     const steps = m.langkah.length;
     const dilakukan = (langkahSaya[m.id] || []).filter(s => s.startsWith("l")).length;
     const n = nilaiModul(m);
@@ -90,13 +108,14 @@ function renderModul() {
     const kerjakan = dilakukan + ((langkahSaya[m.id] || []).includes("p") ? 1 : 0)
                    + ((langkahSaya[m.id] || []).includes("k") ? 1 : 0);
     const pct = Math.round(kerjakan / banyak * 100);
-    return `<div class="modul-card" onclick="bukaModul('${m.id}')">
-      <span class="modul-num">MODUL ${m.nomor}</span>
+    const p = modulPrasyarat(m);
+    return `<div class="modul-card" onclick="bukaModul('${m.id}')" style="${terbuka ? "" : "opacity:.55;cursor:not-allowed"}">
+      <span class="modul-num">${terbuka ? `MODUL ${m.nomor}` : `🔒 MODUL ${m.nomor} — terbuka setelah Modul ${p.nomor} selesai`}</span>
       <h3>${m.ikon} ${m.judul}</h3>
-      <p class="muted" style="font-size:.85rem">${m.ringkas}</p>
-      <div class="progress-bar"><div style="width:${pct}%"></div></div>
+      <p class="muted" style="font-size:.85rem">${terbuka ? m.ringkas : "Selesaikan <b>praktik &amp; kuis</b> Modul " + p.nomor + " terlebih dahulu." }</p>
+      <div class="progress-bar"><div style="width:${terbuka ? pct : 0}%"></div></div>
       <span class="nilai-badge">
-        📚 ${kerjakan}/${banyak} selesai &nbsp;|&nbsp;
+        📚 ${terbuka ? `${kerjakan}/${banyak} selesai` : "terkunci"} &nbsp;|&nbsp;
         🧪 praktik ${n.praktik === undefined ? "–" : n.praktik} &nbsp;|&nbsp;
         📝 kuis ${n.kuis === undefined ? "–" : n.kuis} &nbsp;|&nbsp; ⭐ ${n.akhir}
       </span></div>`;
@@ -262,6 +281,11 @@ window.kirimFinal = async (otomatis) => {
 /* ---------- MODAL MODUL ---------- */
 window.bukaModul = (id) => {
   const m = MODUL.find(x => x.id === id);
+  if (!modulTerbuka(m)) {
+    const p = modulPrasyarat(m);
+    alert(`🔒 Modul ${m.nomor} masih terkunci.\nSelesaikan praktik & kuis Modul ${p.nomor} ("${p.judul}") terlebih dahulu.`);
+    return;
+  }
   $("mod-judul").textContent = `Modul ${m.nomor}: ${m.judul}`;
   $("mod-isi").innerHTML = isiModul(m);
   $("modal-back").classList.add("tampil");

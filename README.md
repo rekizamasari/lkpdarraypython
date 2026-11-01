@@ -92,6 +92,7 @@ matikan toggle **"Confirm email"** → **Save**.
 - **Kuis**: pilihan ganda, langsung dihitung → tabel `quiz_results`.
 - **Progres langkah**: tabel `progress` (siswa menandai "saya pahami" di tiap langkah).
 - **Rata-rata**: nilai akhir per modul = 50% praktik + 50% kuis.
+- **Gerbang berantai**: Modul N hanya terbuka setelah praktik & kuis Modul N-1 terkirim; Kuis Akhir terbuka setelah kelima modul.
 
 ## 📈 Dashboard Guru
 - **Analitik**: jumlah siswa terfilter, yang sudah mulai, rata-rata kelas, modul paling sulit, grafik rata-rata per modul, dan berapa siswa sudah lulus praktik (≥70).

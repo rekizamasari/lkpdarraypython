@@ -24,6 +24,7 @@
       <button class="tab-btn aktif" data-tab="analitik">📈 Analitik Kelas</button>
       <button class="tab-btn" data-tab="nilai">🗂️ Nilai Siswa</button>
       <button class="tab-btn" data-tab="rincian">💬 Rincian Jawaban</button>
+      <button class="tab-btn" data-tab="materi">📖 Materi &amp; Kunci</button>
     </div>
 
     <!-- ======== TAB: ANALITIK ======== -->
@@ -73,6 +74,15 @@
         <h4 style="color:var(--aqua);margin-bottom:12px">📝 Riwayat Kuis Terkini</h4>
         <table class="data" id="tabel-kuis"></table>
       </div>
+    </section>
+
+    <!-- ======== TAB: MATERI & KUNCI ======== -->
+    <section class="tab-page" id="tab-materi">
+      <div class="lec-panel" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <b style="color:var(--aqua)">Pilih materi yang ingin dilihat:</b>
+        <select id="materi-pilih" style="max-width:420px"></select>
+      </div>
+      <div id="materi-content"></div>
     </section>
   </main>
 

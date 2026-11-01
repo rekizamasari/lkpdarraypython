@@ -49,6 +49,64 @@ $g("btn-refresh").onclick = async () => {
 $g("filter-kelas").onchange = () => tampilkan(semuaData);
 $g("btn-csv").onclick = unduhCSV;
 
+/* ---------- TAB MATERI & KUNCI ---------- */
+const escapeHTML = (s) => escape(s);
+$g("materi-pilih").innerHTML =
+  MODUL.map(m => `<option value="${m.id}">Modul ${m.nomor} — ${m.judul}</option>`).join("") +
+  `<option value="final">🏁 Kuis Akhir (20 soal) + kunci</option>`;
+$g("materi-pilih").onchange = () => renderMateri($g("materi-pilih").value);
+renderMateri("m1");
+
+function renderMateri(mid) {
+  const box = $g("materi-content");
+  if (mid === "final") {
+    box.innerHTML = `
+      <div class="lec-panel">
+        <h4>🏁 Kuis Akhir — Ujian Terpadu</h4>
+        <ul>
+          <li><b>${KUIS_AKHIR.soal.length} soal</b> mencampur Modul 1–5.</li>
+          <li>Durasi <b>${KUIS_AKHIR.durasiMenit} menit</b>, hitung mundur; auto-kirim saat habis.</li>
+          <li>Urutan soal <b>diacak</b> setiap siswa memulai.</li>
+          <li>Terbuka hanya jika <b>kelima modul</b> terkirim praktik + kuisnya.</li>
+          <li>Jawaban kunci ditandai ✅ hijau di daftar soal di bawah.</li>
+        </ul>
+      </div>
+      ${KUIS_AKHIR.soal.map((s, i) => soalDenganKunci(s, i + 1)).join("")}`;
+    return;
+  }
+  const m = MODUL.find(x => x.id === mid);
+  const langkah = m.langkah.map((l, i) => `
+    <div class="langkah-item">
+      <span class="lebel-langkah">LANGKAH ${i + 1}</span>
+      <h4>${l.judul}</h4>
+      <p class="muted">${l.penjelasan}</p>
+      <pre class="code-editor" style="min-height:0">${escapeHTML(l.kode)}</pre>
+    </div>`).join("");
+  const kriteria = m.praktik.checks.map(c =>
+    `<div class="check-line">🎯 <b>${c.poin} poin</b> (dicek dari ${c.type === "kode" ? "kode" : "output"}) — ${c.desc}</div>`).join("");
+  const kuisModul = m.kuis.map((s, i) => soalDenganKunci(s, i + 1)).join("");
+  box.innerHTML = `
+    <div class="lec-panel"><h4>🎯 Tujuan Pembelajaran</h4><ul>${m.tujuan.map(t => `<li>${t}</li>`).join("")}</ul>
+      <h4>📖 Materi</h4>${m.teori}</div>
+    <div class="lec-panel"><h4>🧭 Langkah demi Langkah</h4>${langkah}</div>
+    <div class="lec-panel"><h4>🧪 Praktik yang Dinilai Otomatis</h4>
+      <p style="line-height:1.7;margin-bottom:8px">${m.praktik.deskripsi}</p>
+      <div class="code-label">Kerangka awal yang diberikan ke siswa</div>
+      <pre class="code-editor" style="min-height:0">${escapeHTML(m.praktik.starter)}</pre>
+      <h4 style="margin-top:14px">📐 Kriteria auto-check (total 100 poin)</h4>${kriteria}</div>
+    <div class="lec-panel"><h4>📝 Kuis Modul — dengan kunci</h4>${kuisModul}</div>`;
+}
+
+function soalDenganKunci(s, nomor) {
+  return `<div class="soal">
+    <p><b>${nomor}.</b> ${s.q}</p>
+    ${s.opsi.map((o, j) => `
+      <div class="opsi ${j === s.kunci ? "benar" : ""}">
+        <span>${String.fromCharCode(65 + j)}. ${o} ${j === s.kunci ? "✅ <b>kunci</b>" : ""}</span>
+      </div>`).join("")}
+  </div>`;
+}
+
 /* ---------- TAMBAH KELAS ---------- */
 $g("btn-kelas-baru").onclick = async () => {
   const nama = prompt("Nama kelas baru (contoh: X-I):");

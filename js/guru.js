@@ -1,0 +1,249 @@
+/* =====================================================================
+ * guru.js — Logika dashboard guru:
+ *  • Ringkasan statistik kelas (jumlah siswa, rata-rata, kelulusan)
+ *  • Grafik Chart.js: rata-rata nilai per modul + bar praktik selesai
+ *  • Tabel rekap nilai per siswa × modul + unduh CSV
+ *  • Riwayat praktik & kuis
+ *  • Realtime: tabel Supabase di-subscribe → data otomatis di-refresh
+ * ===================================================================== */
+const $g = (id) => document.getElementById(id);
+const sb = initSupabase();
+let profilSaya = null;
+let kelasIdCache = {};       // nama → id utk filter
+let semuaData = null;        // hasil terakhir analitik (utk CSV)
+let chart1 = null, chart2 = null;
+
+/* ---------- TAB ---------- */
+document.querySelectorAll(".tab-btn").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(x => x.classList.remove("aktif"));
+    document.querySelectorAll(".tab-page").forEach(x => x.classList.remove("aktif"));
+    b.classList.add("aktif");
+    $g("tab-" + b.dataset.tab).classList.add("aktif");
+  };
+});
+
+/* ---------- STARTUP ---------- */
+(async () => {
+  const user = await requireLogin();
+  if (!user) return;
+  profilSaya = await getProfile(user.id);
+  if (profilSaya?.role !== "guru") {
+    // siswa tidak boleh masuk dashboard guru
+    window.location.replace("siswa.html");
+    return;
+  }
+  $g("profil-nama").textContent = "👨‍🏫 " + (profilSaya?.nama || "Guru");
+  await muatKelas();
+  await refreshSemua();
+  pasangRealtime();
+})();
+
+$g("btn-logout").onclick = doLogout;
+$g("filter-kelas").onchange = () => tampilkan(semuaData);
+$g("btn-csv").onclick = unduhCSV;
+
+/* ---------- DATA ---------- */
+async function muatKelas() {
+  const { data } = await sb.from("kelas").select("*").order("nama");
+  kelasIdCache = {};
+  $g("filter-kelas").innerHTML = `<option value="">Semua Kelas</option>` +
+    (data || []).map(k => { kelasIdCache[k.nama] = k.id; return `<option value="${k.nama}">${k.nama}</option>`; }).join("");
+  return data || [];
+}
+
+async function refreshSemua() {
+  // Semua profil siswa + kelas
+  const [siswa, subs, quis] = await Promise.all([
+    sb.from("profiles").select("id, nama, nis, kelas_id, kelas:kelas_id(nama)").eq("role", "siswa").order("nama"),
+    sb.from("submissions").select("student_id, module_id, nilai, output, created_at").order("created_at", { ascending: false }),
+    sb.from("quiz_results").select("student_id, module_id, benar, total, nilai, answers, created_at").order("created_at", { ascending: false }),
+  ]);
+  const listSiswa = siswa.data || [];
+  const listSubs  = subs.data || [];
+  const listKuis  = quis.data || [];
+
+  // Bungkus: nilai praktik & kuis terBAIK per siswa per modul
+  const best = {};
+  listSubs.forEach(s => {
+    const k = s.student_id; best[k] = best[k] || {};
+    best[k][s.module_id] = best[k][s.module_id] || {};
+    best[k][s.module_id].praktik = Math.max(best[k][s.module_id].praktik ?? -1, s.nilai);
+  });
+  listKuis.forEach(q => {
+    const k = q.student_id; best[k] = best[k] || {};
+    best[k][q.module_id] = best[k][q.module_id] || {};
+    best[k][q.module_id].kuis = Math.max(best[k][q.module_id].kuis ?? -1, q.nilai);
+  });
+
+  semuaData = { listSiswa, listSubs, listKuis, best };
+  tampilkan(semuaData);
+}
+
+/* ---------- TAMPILKAN ---------- */
+function filterAktif(siswa) {
+  const f = $g("filter-kelas").value;
+  if (!f) return siswa;
+  const kelasId = kelasIdCache[f];
+  return siswa.filter(s => s.kelas_id === kelasId);
+}
+
+function tampilkan({ listSiswa, best, listSubs, listKuis }) {
+  const aktif = filterAktif(listSiswa);
+  const ids = new Set(aktif.map(s => s.id));
+
+  // ---- statistik ----
+  const perModul = {};       // { m1: { praktik:[], kuis:[], selesai:0 } }
+  MODUL.forEach(m => perModul[m.id] = { praktik: [], kuis: [], selesai: 0 });
+  aktif.forEach(s => {
+    MODUL.forEach(m => {
+      const b = (best[s.id] || {})[m.id] || {};
+      if (b.praktik !== undefined) { perModul[m.id].praktik.push(b.praktik); if (b.praktik >= 70) perModul[m.id].selesai++; }
+      if (b.kuis    !== undefined) perModul[m.id].kuis.push(b.kuis);
+    });
+  });
+  const rata = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : "–";
+  const semuaNilaiAkhir = [];
+  aktif.forEach(s => {
+    MODUL.forEach(m => {
+      const b = (best[s.id] || {})[m.id] || {};
+      if (b.praktik !== undefined || b.kuis !== undefined)
+        semuaNilaiAkhir.push((b.praktik ?? 0) * 0.5 + (b.kuis ?? 0) * 0.5);
+    });
+  });
+  const kelPraktik = perModul ? MODUL.map(m => perModul[m.id].selesai) : [];
+  const palingSulit = MODUL.map((m, i) => ({
+    m,
+    selesai: kelPraktik[i],
+  })).sort((a, b) => a.selesai - b.selesai)[0];
+  const belumMulai = aktif.filter(s => !(best[s.id] && Object.keys(best[s.id]).length)).length;
+
+  $g("stat-grid").innerHTML = `
+    <div class="stat-card"><div class="val">${aktif.length}</div><div class="lbl">👨‍🎓 siswa terdaftar (kelas terfilter)</div></div>
+    <div class="stat-card"><div class="val">${aktif.length - belumMulai}</div><div class="lbl">✅ sudah mulai mengerjakan</div></div>
+    <div class="stat-card"><div class="val">${semuaNilaiAkhir.length ? rata(semuaNilaiAkhir) : "–"}</div><div class="lbl">⭐ rata-rata nilai akhir kelas</div></div>
+    <div class="stat-card"><div class="val" style="color:var(--kuning)">${palingSulit ? palingSulit.m.ikon + " M" + palingSulit.m.nomor : "–"}</div><div class="lbl">🔍 modul paling sulit (praktik lulus paling sedikit: ${palingSulit ? palingSulit.selesai : "-"}/${aktif.length})</div></div>`;
+
+  // ---- grafik per modul ----
+  const ctx1 = $g("chart-1").getContext("2d");
+  if (chart1) chart1.destroy();
+  chart1 = new Chart(ctx1, {
+    type: "bar",
+    data: {
+      labels: MODUL.map(m => "M" + m.nomor + " " + m.judul.slice(0, 18)),
+      datasets: [
+        { label: "Rata-rata Praktik", data: MODUL.map(m => +rata(perModul[m.id].praktik)), backgroundColor: "#22d3ee" },
+        { label: "Rata-rata Kuis",    data: MODUL.map(m => +rata(perModul[m.id].kuis)),    backgroundColor: "#a78bfa" },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { ticks: { color: "#94a3b8", font: { size: 10 } } }, y: { ticks: { color: "#94a3b8" }, beginAtZero: true, max: 100 } },
+      plugins: { legend: { labels: { color: "#e2e8f0" } } }
+    }
+  });
+
+  const ctx2 = $g("chart-2").getContext("2d");
+  if (chart2) chart2.destroy();
+  chart2 = new Chart(ctx2, {
+    type: "bar",
+    data: {
+      labels: MODUL.map(m => "M" + m.nomor),
+      datasets: [
+        { label: "Praktik lulus (≥70)", data: kelPraktik, backgroundColor: "#34d399" },
+        { label: "Kerja praktik",       data: MODUL.map(m => perModul[m.id].praktik.length), backgroundColor: "#fbbf24" },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { ticks: { color: "#94a3b8" } }, y: { ticks: { color: "#94a3b8" }, beginAtZero: true } },
+      plugins: { legend: { labels: { color: "#e2e8f0" } } }
+    }
+  });
+
+  // ---- tabel rekap nilai ----
+  let head = `<thead><tr><th>Nama Siswa</th><th>NIS</th><th>Kelas</th>`;
+  MODUL.forEach(m => head += `<th>⭐ Modul ${m.nomor}</th>`);
+  head += `<th>🔥 Rata Modul</th></tr></thead><tbody>`;
+  const rows = aktif.map(s => {
+    let baris = `<tr><td>${escape(s.nama)}</td><td>${escape(s.nis || "-")}</td><td>${escape(s.kelas?.nama || "-")}</td>`;
+    let angkanya = [];
+    MODUL.forEach(m => {
+      const b = (best[s.id] || {})[m.id] || {};
+      const pk = b.praktik, qu = b.kuis;
+      const ada = pk !== undefined || qu !== undefined;
+      const akhir = ada ? Math.round(((pk ?? 0) * 0.5 + (qu ?? 0) * 0.5)) : null;
+      baris += `<td class="angka ${ada ? (akhir >= 70 ? "v-hijau" : "v-merah") : ""}" title="praktik ${pk ?? "-"} | kuis ${qu ?? "-"}">${ada ? akhir : "–"}</td>`;
+      if (ada) angkanya.push(akhir);
+    });
+    const rerModul = angkanya.length ? (angkanya.reduce((a, b) => a + b, 0) / angkanya.length).toFixed(1) : "–";
+    baris += `<td class="angka"><b>${rerModul}</b></td></tr>`;
+    return baris;
+  }).join("");
+  $g("tabel-nilai").innerHTML = head + rows + "</tbody>";
+
+  // ---- rincian praktik & kuis ----
+  const subData = listSubs.filter(x => ids.has(x.student_id)).slice(0, 50);
+  const kuiData = listKuis.filter(x => ids.has(x.student_id)).slice(0, 50);
+  const sNama = (id) => listSiswa.find(s => s.id === id)?.nama || "?";
+
+  $g("tabel-subs").innerHTML = `<thead><tr><th>Waktu</th><th>Nama Siswa</th><th>Modul</th><th>Nilai (0-100)</th><th>Kode (potongan)</th></tr></thead><tbody>` +
+    subData.map(x => `<tr><td>${fmtWaktu(x.created_at)}</td><td>${escape(sNama(x.student_id))}</td><td>M${MODUL.find(m => m.id === x.module_id)?.nomor || "?"}</td>
+      <td class="angka ${x.nilai >= 70 ? "v-hijau" : "v-merah"}">${x.nilai}</td>
+      <td><code class="kecil-code">${escape((x.output || "").slice(0, 60))}</code></td></tr>`).join("") +
+    (subData.length ? "" : `<tr><td colspan="5" class="muted">Belum ada praktik dikirim</td></tr>`) + `</tbody>`;
+
+  $g("tabel-kuis").innerHTML = `<thead><tr><th>Waktu</th><th>Nama Siswa</th><th>Modul</th><th>Jawaban benar</th><th>Nilai</th></tr></thead><tbody>` +
+    kuiData.map(x => `<tr><td>${fmtWaktu(x.created_at)}</td><td>${escape(sNama(x.student_id))}</td><td>M${MODUL.find(m => m.id === x.module_id)?.nomor || "?"}</td>
+      <td class="angka">${x.benar} / ${x.total}</td>
+      <td class="angka ${x.nilai >= 70 ? "v-hijau" : "v-merah"}">${x.nilai}</td></tr>`).join("") +
+    (kuiData.length ? "" : `<tr><td colspan="5" class="muted">Belum ada kuis dikerjakan</td></tr>`) + `</tbody>`;
+}
+
+function escape(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+/* ---------- UNDUH CSV ---------- */
+function unduhCSV() {
+  if (!semuaData) return;
+  const { listSiswa, best } = semuaData;
+  const aktif = filterAktif(listSiswa);
+  let csv = "Nama;NIS;Kelas";
+  MODUL.forEach(m => csv += `;M${m.nomor} Praktik;M${m.nomor} Kuis;M${m.nomor} Akhir`);
+  csv += "\n";
+  aktif.forEach(s => {
+    csv += `${s.nama};${s.nis || "-"};${s.kelas?.nama || "-"}`;
+    MODUL.forEach(m => {
+      const b = (best[s.id] || {})[m.id] || {};
+      const ada = (b.praktik !== undefined || b.kuis !== undefined);
+      const akhir = ada ? Math.round(((b.praktik ?? 0) * 0.5 + (b.kuis ?? 0) * 0.5)) : "-";
+      csv += `;${b.praktik ?? "-"};${b.kuis ?? "-"};${akhir}`;
+    });
+    csv += "\n";
+  });
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = "rekap-nilai-lkpd.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- REALTIME ---------- */
+function pasangRealtime() {
+  try {
+    const chan = sb
+      .channel("dashboard-guru")
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions" }, onUbah)
+      .on("postgres_changes", { event: "*", schema: "public", table: "quiz_results" }, onUbah)
+      .on("postgres_changes", { event: "*", schema: "public", table: "progress" }, onUbah)
+      .subscribe();
+    console.info("Realtime subscribe:", chan.state);
+  } catch (e) {
+    console.warn("Realtime gagal:", e.message, "— dashboard tetap bisa dipakai, cukup refresh manual.");
+  }
+}
+
+/* ⏱ debounce supaya tidak spam refresh */
+let debounceTimer = null;
+function onUbah() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => refreshSemua(), 800);
+}

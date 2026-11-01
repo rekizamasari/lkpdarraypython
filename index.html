@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login — LKPD Array &amp; Rekursif</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <div class="login-head">
+      <div class="login-logo">🐍</div>
+      <h1>LKPD Interaktif</h1>
+      <p class="muted">Array 1D · Array 2D · Rekursif<br />
+      Koding &amp; Kecerdasan Artifisial — Kelas X</p>
+    </div>
+
+    <div id="login-form">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="email@email.com" autocomplete="username" />
+      <label>Kata Sandi</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+      <button id="btn-login" class="btn btn-primary full">🔓 Masuk</button>
+      <div class="demo-row">
+        Belum punya akun?
+        <a href="#" id="link-daftar">Daftar sebagai siswa</a>
+      </div>
+    </div>
+
+    <div id="daftar-form" hidden>
+      <label>Nama Lengkap</label>
+      <input type="text" id="daftar-nama" placeholder="Nama Anda" />
+      <label>NIS (nomor induk siswa)</label>
+      <input type="text" id="daftar-nis" placeholder="cth: 20240001" />
+      <label>Kelas</label>
+      <select id="daftar-kelas"></select>
+      <label>Email</label>
+      <input type="email" id="daftar-email" placeholder="email@email.com" />
+      <label>Kata Sandi (min. 6 karakter)</label>
+      <input type="password" id="daftar-pass" placeholder="••••••••" />
+      <button id="btn-daftar" class="btn btn-primary full">✅ Daftar</button>
+      <div class="demo-row">
+        Sudah punya akun?
+        <a href="#" id="link-login">Kembali ke login</a>
+      </div>
+    </div>
+
+    <p id="pesan" class="pesan" hidden></p>
+  </main>
+
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script>
+const sb = initSupabase();
+const $ = (id) => document.getElementById(id);
+
+// tint kelas ke dropdown
+(async () => {
+  const { data } = await sb.from("kelas").select("nama").order("nama");
+  $("daftar-kelas").innerHTML = (data || [{ nama: "X-A" }])
+    .map((k) => `<option>${k.nama}</option>`).join("");
+})();
+
+function tampilPesan(teks, sukses = false) {
+  const p = $("pesan");
+  p.textContent = teks;
+  p.className = "pesan " + (sukses ? "ok" : "err");
+  p.hidden = false;
+}
+
+$("link-daftar").onclick = (e) => { e.preventDefault(); $("login-form").hidden = true; $("daftar-form").hidden = false; $("pesan").hidden = true; };
+$("link-login").onclick  = (e) => { e.preventDefault(); $("daftar-form").hidden = true; $("login-form").hidden = false; $("pesan").hidden = true; };
+
+$("btn-login").onclick = async () => {
+  const email = $("login-email").value.trim(), pass = $("login-pass").value;
+  if (!email || !pass) return tampilPesan("Email dan kata sandi harus diisi.");
+  $("btn-login").disabled = true; $("btn-login").textContent = "Memeriksa…";
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    $("btn-login").disabled = false; $("btn-login").textContent = "🔓 Masuk";
+    return tampilPesan("Login gagal: " + ("Email not confirmed" === error.message ? "silakan cek email dan konfirmasi dulu" : error.message));
+  }
+  const { data: prof } = await sb.from("profiles").select("role").eq("id", data.user.id).single();
+  window.location.replace(prof && prof.role === "guru" ? "guru.html" : "siswa.html");
+};
+
+$("btn-daftar").onclick = async () => {
+  const nama = $("daftar-nama").value.trim(),
+        nis  = $("daftar-nis").value.trim(),
+        kls  = $("daftar-kelas").value,
+        mail = $("daftar-email").value.trim(),
+        pass = $("daftar-pass").value;
+  if (!nama || !mail || pass.length < 6) return tampilPesan("Nama, email, dan sandi (min 6 karakter) wajib diisi.");
+  $("btn-daftar").disabled = true; $("btn-daftar").textContent = "Mendaftarkan…";
+  const { error } = await sb.auth.signUp({
+    email: mail, password: pass,
+    options: { data: { nama, nis, kelas: kls, role: "siswa" } }
+  });
+  if (error) {
+    $("btn-daftar").disabled = false; $("btn-daftar").textContent = "✅ Daftar";
+    return tampilPesan("Gagal daftar: " + (error.message.includes("already") ? "email sudah terdaftar" : error.message));
+  }
+  tampilPesan("Akun dibuat! Jika diminta, klik tautan konfirmasi yang dikirim ke email Anda, lalu kembali ke halaman ini untuk login.", true);
+};
+</script>
+</body>
+</html>

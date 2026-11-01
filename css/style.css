@@ -28,6 +28,8 @@ a { color: var(--aqua); }
 .pesan { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: .9rem; }
 .pesan.err { background: #7f1d1d55; border: 1px solid var(--merah); color: var(--merah); }
 .pesan.ok  { background: #064e3b55; border: 1px solid var(--hijau); color: var(--hijau); }
+.demo-row { margin-top: 14px; text-align: center; font-size: .85rem; color: var(--muted); }
+.demo-row a { text-decoration: none; font-weight: 600; }
 
 /* ---------- KOMPONEN ---------- */
 label { display: block; margin: 10px 0 4px; font-size: .85rem; color: var(--muted); }
@@ -141,12 +143,25 @@ select option { background: var(--bg2); }
 .grid-tabel td.blok    { color: #06121f; background: var(--ungu); font-weight: 800; }
 
 /* ---------- KUIS ---------- */
-.soal { margin-bottom: 18px; }
-.soal .opsi { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; background: #0b1322; border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; cursor: pointer; }
-.soal .opsi:hover { border-color: var(--aqua); }
+.soal { margin-bottom: 24px; }
+.soal > p { line-height: 1.65; }
+.soal .opsi {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 11px 14px; background: #0b1322; border: 1px solid var(--line);
+  border-radius: 10px; margin-top: 9px; cursor: pointer;
+  line-height: 1.55; font-size: .93rem;
+}
+.soal .opsi:hover { border-color: var(--aqua); background: #0e1a2e; }
 .soal .opsi.dipilih { border-color: var(--aqua); background: #164e6355; }
 .soal .opsi.benar { border-color: var(--hijau); background: #064e3b55; }
 .soal .opsi.salah { border-color: var(--merah); background: #7f1d1d33; }
+.soal .opsi input[type="radio"] {
+  width: auto; flex: none; margin-top: 3px;
+  accent-color: var(--aqua); transform: scale(1.2);
+  cursor: pointer;
+}
+.soal .opsi span { flex: 1; }
+.soal .opsi.dipilih span { color: var(--aqua); font-weight: 600; }
 
 /* ---------- TABEL ---------- */
 table.data { width: 100%; border-collapse: collapse; font-size: .88rem; }

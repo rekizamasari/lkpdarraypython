@@ -5,8 +5,8 @@
  *   2. Menu "Settings" → "API"
  *   3. Salin "Project URL" dan "anon public key" ke sini
  * ===================================================================== */
-const SUPABASE_URL = "https://GANTI-PROJECT-ANDA.supabase.co";
-const SUPABASE_ANON_KEY = "GANTI_ANON_PUBLIC_KEY_ANDA";
+const SUPABASE_URL = "https://lkpdarraypython.supabase.co";
+const SUPABASE_ANON_KEY = "bgxzarmkpwhiweovbsyh";
 
 // ---------------------------------------------------------------------------
 // Profil guru default yang dibuat via SQL (lihat README bagian 6).

@@ -79,10 +79,11 @@ create policy "profiles_read_all"    on public.profiles for select using (auth.r
 create policy "profiles_self_upsert" on public.profiles for insert  with check (auth.uid() = id);
 create policy "profiles_self_update" on public.profiles for update using (auth.uid() = id);
 
--- KELAS: semua login boleh baca, guru boleh tulis
+-- KELAS: dibaca publik (dibutuhkan dropdown pendaftaran SEBELUM login),
+-- guru boleh tulis
 drop policy if exists "kelas_read"  on public.kelas;
 drop policy if exists "kelas_write" on public.kelas;
-create policy "kelas_read"  on public.kelas for select using (auth.role() = 'authenticated');
+create policy "kelas_read"  on public.kelas for select using (true);
 create policy "kelas_write" on public.kelas for all    using (
   exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'guru')
 );
@@ -137,7 +138,10 @@ create trigger on_auth_user_created
 -- =====================================================================
 insert into public.kelas (nama, walikelas) values
   ('X-A', 'Ibu Sari'),
-  ('X-B', 'Pak Budi')
+  ('X-B', 'Pak Budi'),
+  ('X-I', null),
+  ('X-J', null),
+  ('X-K', null)
 on conflict (nama) do nothing;
 
 -- =====================================================================

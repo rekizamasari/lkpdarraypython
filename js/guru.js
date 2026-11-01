@@ -49,6 +49,22 @@ $g("btn-refresh").onclick = async () => {
 $g("filter-kelas").onchange = () => tampilkan(semuaData);
 $g("btn-csv").onclick = unduhCSV;
 
+/* ---------- TAMBAH KELAS ---------- */
+$g("btn-kelas-baru").onclick = async () => {
+  const nama = prompt("Nama kelas baru (contoh: X-I):");
+  if (!nama) return;
+  const bersih = nama.trim().toUpperCase();
+  if (!/^[A-Z0-9\- ]+$/.test(bersih)) return alert("Nama kelas hanya boleh huruf, angka, dan hubung.");
+  const { error } = await sb.from("kelas").insert({ nama: bersih });
+  if (error) {
+    console.error(error);
+    return alert("Gagal menambah kelas: " + (error.message.includes("duplicate") ? "kelas sudah ada" : error.message));
+  }
+  alert("✅ Kelas " + bersih + " berhasil ditambahkan!");
+  await muatKelas();
+  await refreshSemua();
+};
+
 /* Cadangan: refresh ringan tiap 90 detik sesaat realtime bermasalah */
 setInterval(() => { refreshSemua(); }, 90000);
 

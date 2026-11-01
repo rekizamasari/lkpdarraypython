@@ -100,8 +100,164 @@ function renderModul() {
         🧪 praktik ${n.praktik === undefined ? "–" : n.praktik} &nbsp;|&nbsp;
         📝 kuis ${n.kuis === undefined ? "–" : n.kuis} &nbsp;|&nbsp; ⭐ ${n.akhir}
       </span></div>`;
-  }).join("");
+  }).join("") + renderKartuFinal();
 }
+
+/* ---------- KUIS AKHIR (20 soal, berwaktu) ---------- */
+let soalAkhir = [], finalTimer = null, deadline = null, kuisAkhirAktif = false;
+
+function semuaModulSelesai() {
+  return MODUL.every(m => {
+    const n = nilaiSaya[m.id] || {};
+    return n.praktik !== undefined && n.kuis !== undefined;
+  });
+}
+
+function renderKartuFinal() {
+  const siap = semuaModulSelesai();
+  const nf = nilaiSaya["final"];
+  const checklist = MODUL.map(m => {
+    const v = nilaiSaya[m.id] || {};
+    const ok = v.praktik !== undefined && v.kuis !== undefined;
+    return ok ? `<span title="Modul ${m.nomor} selesai">✅ M${m.nomor}</span>` : `<span title="Modul ${m.nomor} belum selesai">⬜ M${m.nomor}</span>`;
+  }).join(" ");
+  return `<div class="modul-card" ${siap ? 'onclick="bukaFinal()"' : ''} style="${siap ? "border-color:var(--kuning);" : "opacity:.55;cursor:not-allowed"}">
+    <span class="modul-num" style="color:var(--kuning)">🏁 KUIS AKHIR (TERBUKA JIKA SEMUA MODUL SELESAI)</span>
+    <h3>🧩 Ujian Terpadu — 20 Soal</h3>
+    <p class="muted" style="font-size:.85rem">${siap
+      ? `Terbuka! ${KUIS_AKHIR.durasiMenit} menit · urutan soal diacak · auto-kirim saat waktu habis · nilai terbaik: ${nf ? nf.kuis ?? "-" : "-"}`
+      : "Selesaikan praktik + kuis di kelima modul untuk membukanya. Ceklis:"}</p>
+    <span class="nilai-badge" ${siap ? 'style="display:none"' : ""}>${checklist}</span>
+  </div>`;
+}
+
+window.bukaFinal = () => {
+  const nf = nilaiSaya["final"];
+  $("mod-judul").textContent = `🏁 ${KUIS_AKHIR.judul}`;
+  $("mod-isi").innerHTML = `
+  <div class="lec-panel">
+    <h4>📖 Aturan Kuis Akhir</h4>
+    <ul>
+      <li><b>${KUIS_AKHIR.soal.length} soal</b> mencampur semua materi (array 1D, 2D, rekursif, visualisasi, pencarian jalur).</li>
+      <li>Dibatasi waktu <b>${KUIS_AKHIR.durasiMenit} menit</b>; hitung mundur tampil di bagian atas.</li>
+      <li><b>Urutan soal diacak</b> setiap kali memulai.</li>
+      <li>Saat waktu habis, jawaban <b>otomatis dikirim</b>.</li>
+      <li>Seluruh soal wajib dijawab sebelum menekan Kirim (soal kosong dianggap salah).</li>
+    </ul>
+    ${nf ? `<div class="info-box hijau">Nilai terbaik kamu saat ini: <span class="nilai-besar">${nf.kuis ?? "-"}</span>/100 — mengerjakan ulang boleh untuk memperbaiki (yang disimpan tetap nilai terbaik).</div>`
+         : `<div class="info-box kuning">⚠️ Menutup halaman akan menghentikan timer; jawaban yang belum dikirim tidak tersimpan. Pastikan waktu &amp; jaringan cukup sebelum memulai.</div>`}
+    <button class="btn btn-kuning" onclick="mulaiFinal()">🚀 Mulai Kuis Sekarang</button>
+  </div>`;
+  $("modal-back").classList.add("tampil");
+};
+
+function acakArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+window.mulaiFinal = () => {
+  soalAkhir = acakArray(KUIS_AKHIR.soal);
+  kuisAkhirAktif = true;
+  deadline = Date.now() + KUIS_AKHIR.durasiMenit * 60 * 1000;
+
+  $("mod-judul").textContent = `🏁 ${KUIS_AKHIR.judul}`;
+  $("mod-isi").innerHTML = `
+    <div class="timer-bar" id="timer-bar">⏱️ ${KUIS_AKHIR.durasiMenit}:00</div>
+    <div id="daftar-soal-akhir">
+      ${soalAkhir.map((s, i) => `
+        <div class="soal">
+          <p><b>${i + 1}.</b> ${s.q}</p>
+          ${s.opsi.map((o, j) => `
+            <label class="opsi">
+              <input type="radio" name="final-${i}" value="${j}" />
+              <span>${String.fromCharCode(65 + j)}. ${o}</span>
+            </label>`).join("")}
+        </div>`).join("")}
+    </div>
+    <div class="aksi-bar" style="position:sticky;bottom:10px;background:var(--bg2);padding:12px;border-radius:10px;border:1px solid var(--line)">
+      <span class="muted">Jawab semua soal sebelum kirim (sisa waktu: <b id="sisa-timer">${KUIS_AKHIR.durasiMenit}:00</b>)</span>
+      <button class="btn btn-kuning" onclick="kirimFinal(false)">📤 Kirim Jawaban</button>
+    </div>`;
+
+  clearInterval(finalTimer);
+  finalTimer = setInterval(berjalanTimer, 1000);
+  berjalanTimer();
+};
+
+/* hitung mundur kuis akhir */
+function berjalanTimer() {
+  const sisaMs = deadline - Date.now();
+  const bar = $("timer-bar");
+  if (!bar) { clearInterval(finalTimer); return; }
+  if (sisaMs <= 0) { kirimFinal(true); return; }
+  const m = Math.floor(sisaMs / 60000), s = Math.floor(sisaMs % 60000 / 1000);
+  bar.textContent = `⏱️ ${m}:${String(s).padStart(2, "0")}`;
+  bar.className = "timer-bar" + (m < 2 ? " kritikal" : m < 5 ? " peringatan" : "");
+  const labelSisa = document.getElementById("sisa-timer");
+  if (labelSisa) labelSisa.textContent = `${m}:${String(s).padStart(2, "0")}`;
+}
+
+window.kirimFinal = async (otomatis) => {
+  const jawaban = [], kosong = [];
+  soalAkhir.forEach((s, i) => {
+    const dipilih = document.querySelector(`input[name="final-${i}"]:checked`);
+    jawaban.push(dipilih ? +dipilih.value : null);
+    if (!dipilih) kosong.push(i + 1);
+  });
+
+  // waktu belum habis tetapi ada soal kosong → konfirmasi kirim
+  if (!otomatis && kosong.length && deadline > Date.now()) {
+    if (!confirm(`Masih ada ${kosong.length} soal kosong (no. ${kosong.join(", ")}). Kirim sekarang? Soal kosong dianggap salah.`)) {
+      clearInterval(finalTimer);
+      finalTimer = setInterval(berjalanTimer, 1000);   // lanjutkan waktu
+      return;
+    }
+  }
+  clearInterval(finalTimer);
+  kuisAkhirAktif = false;
+  let benar = 0;
+  soalAkhir.forEach((s, i) => { if (jawaban[i] === s.kunci) benar++; });
+  const nilai = Math.round(benar / soalAkhir.length * 100);
+
+  // tandai benar/salah untuk review
+  soalAkhir.forEach((s, i) => {
+    const wrap = document.querySelectorAll("#daftar-soal-akhir .soal")[i];
+    if (!wrap) return;
+    wrap.querySelectorAll(".opsi").forEach((o) => {
+      const j = +o.querySelector("input").value;
+      if (j === s.kunci) o.classList.add("benar");
+      else if (o.querySelector("input").checked) o.classList.add("salah");
+      o.style.pointerEvents = "none";
+    });
+  });
+
+  $("mod-isi").innerHTML = `
+    <div class="lec-panel">
+      <h4>${otomatis ? "⏰ Waktu habis — jawaban dikirim otomatis" : "✅ Jawaban terkirim"}</h4>
+      <div class="info-box ${nilai >= 70 ? "hijau" : "merah"}">
+        🏁 Nilai kuis akhir: <span class="nilai-besar">${nilai}</span>/100 — <b>${benar} dari ${soalAkhir.length}</b> benar.
+        ${nilai >= 70 ? "Luar biasa! 🎉" : "Ayo belajar ulang modul yang masih lemah 💪"}
+      </div>
+      <p class="muted">Scroll di bawah melihat kunci betulado per soal (hijau = kunci, merah = pilihanmu salah).</p>
+      <div id="daftar-soal-akhir">${$("daftar-soal-akhir")?.innerHTML || ""}</div>
+      <div class="aksi-bar" style="margin-top:12px">
+        <button class="btn btn-primary" onclick="bukaFinal()">↺ Kembali ke Halaman Kuis Akhir</button>
+      </div>
+    </div>`;
+
+  // simpan ke Supabase: nilai terBAIK yang dipakai di dashboard
+  const { error } = await sb.from("quiz_results").insert([
+    { student_id: user.id, module_id: "final", answers: jawaban, benar, total: soalAkhir.length, nilai }
+  ]);
+  if (error) console.error("Simpan kuis akhir gagal:", error.message);
+  await simpanLangkah("final", "k");
+  await muatProgres(); renderModul();
+};
 
 /* ---------- MODAL MODUL ---------- */
 window.bukaModul = (id) => {
@@ -111,6 +267,12 @@ window.bukaModul = (id) => {
   $("modal-back").classList.add("tampil");
 };
 function tutupModal() {
+  // sedang mengerjakan kuis akhir? tawarkan peringatan sebelum keluar
+  if (kuisAkhirAktif) {
+    if (!confirm("⚠️ Kuis akhir masih BERJALAN. Menutup sekarang akan MENGHILANGKAN jawaban dan waktu tetap berjalan berakhir. Tutup?\n(OK = ya, tanggung sendiri)")) return;
+    kuisAkhirAktif = false;
+  }
+  clearInterval(finalTimer);
   $("modal-back").classList.remove("tampil");
   if (chartM4) { chartM4.destroy(); chartM4 = null; }
 }

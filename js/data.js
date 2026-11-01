@@ -289,3 +289,37 @@ row 2:  . . . # . F</pre>
   ],
 },
 ];
+
+/* =====================================================================
+ * KUIS AKHIR (Ujian Terpadu) — hanya terbuka jika SEMUA modul selesai.
+ * 20 soal, dibatasi waktu, urutan soal diacak, auto-kirim saat waktu
+ * habis. Nilai disimpan ke quiz_results dengan module_id = 'final'.
+ * ===================================================================== */
+const KUIS_AKHIR = {
+  id: "final",
+  judul: "Kuis Akhir — Ujian Terpadu",
+  ikon: "🏁",
+  durasiMenit: 20,
+  soal: [
+    { q: "Modul 1 — Pada list Python, indeks elemen pertama adalah…", opsi: ["1", "0", "-1", "tergantung ukuran"], kunci: 1 },
+    { q: "Modul 1 — Dengan <code>x = [10, 20, 30, 40]</code>, hasil <code>x[1:3]</code> adalah…", opsi: ["[10, 20]", "[20, 30]", "[20, 30, 40]", "[30, 40]"], kunci: 1 },
+    { q: "Modul 1 — Dengan <code>a = [5, 9, 2]</code>, nilai <code>a[-2]</code> adalah…", opsi: ["5", "9", "2", "Error"], kunci: 1 },
+    { q: "Modul 1 — Menambah elemen 9 ke akhir list <code>x</code> dilakukan dengan…", opsi: ["x.add(9)", "x.append(9)", "x.push(9)", "x + 9"], kunci: 1 },
+    { q: "Modul 1 — Perulangan <code>for n in [2, 5, 3]: print(n * 2, end=' ')</code> mencetak…", opsi: ["2 5 3", "4 10 6", "4 10 6 tanpa pemisah", "Error"], kunci: 1 },
+    { q: "Modul 1 — Cara menghitung rata-rata nilai list <code>data</code> yang tepat adalah…", opsi: ["sum(data) / len(data)", "max(data) - min(data)", "len(data) / sum(data)", "data.sum()"], kunci: 0 },
+    { q: "Modul 2 — <code>m = [[1, 2], [3, 4], [5, 6]]</code>. Nilai <code>len(m)</code> adalah…", opsi: ["2", "3", "6", "4"], kunci: 1 },
+    { q: "Modul 2 — <code>m = [[1, 2], [3, 4], [5, 6]]</code>. Nilai <code>m[2][1]</code> adalah…", opsi: ["5", "6", "3", "4"], kunci: 1 },
+    { q: "Modul 2 — Banyak kolom matriks <code>m</code> dihitung dengan…", opsi: ["len(m)", "len(m[0])", "size(m)", "m.cols"], kunci: 1 },
+    { q: "Modul 2 — Untuk menjumlah kolom yang sama dari tiap baris (total per kolom), penjumlahannya berupa…", opsi: ["total += m[i][j] secara acak", "total_kolom += m[b][k] untuk kolom k tetap", "total += i * j", "tidak bisa dihitung"], kunci: 1 },
+    { q: "Modul 3 — Kondisi yang menghentikan fungsi rekursif disebut…", opsi: ["recursive case", "base case", "infinite loop", "bug"], kunci: 1 },
+    { q: "Modul 3 — Nilai <code>faktorial(5)</code> adalah…", opsi: ["15", "24", "120", "60"], kunci: 2 },
+    { q: "Modul 3 — Jika <code>fib(0) = 0</code> dan <code>fib(1) = 1</code>, nilai <code>fib(6)</code> adalah…", opsi: ["8", "5", "13", "34"], kunci: 0 },
+    { q: "Modul 3 — Error yang muncul ketika base case terlupakan adalah…", opsi: ["IndexError", "ValueError", "RecursionError", "TypeError"], kunci: 2 },
+    { q: "Modul 3 — <code>hitung_mundur(3)</code> mencetak urutan…", opsi: ["1 2 3 Mulai!", "3 2 1 Mulai!", "Mulai! 3 2 1", "3 1 Mulai!"], kunci: 1 },
+    { q: "Modul 3 — <code>data = [10, 20, 30]</code>; <code>jumlah_ke(2)</code> mengembalikan…", opsi: ["10", "20", "30", "60"], kunci: 2 },
+    { q: "Modul 4 — Format output yang dibaca panel grafik pada LKPD ini adalah…", opsi: ["GARIS: / TITIK:", "PRINT: / OUTPUT:", "LABELS: / DATA:", "bebas format"], kunci: 2 },
+    { q: "Modul 4 — Fungsi Python yang mencari nilai terkecil pada array adalah…", opsi: ["min()", "lower()", "down()", "top()"], kunci: 0 },
+    { q: "Modul 5 — Menemukan sel <code>F</code> dalam fungsi <code>cari()</code> adalah…", opsi: ["recursive case", "base case yang mengembalikan True", "error state", "loop check"], kunci: 1 },
+    { q: "Modul 5 — Saat jalur buntu (tidak ada arah yang berhasil), algoritma rekursif melakukan…", opsi: ["masuk loop terus", "berhenti total", "backtracking: menghapus tanda * lalu mencoba arah lain", "tutup program"], kunci: 2 },
+  ],
+};

@@ -143,11 +143,19 @@ function tampilkan({ listSiswa, best, listSubs, listKuis }) {
   })).sort((a, b) => a.selesai - b.selesai)[0];
   const belumMulai = aktif.filter(s => !(best[s.id] && Object.keys(best[s.id]).length)).length;
 
+  // ---- statistik kuis akhir ----
+  const nilaiFinal = [];
+  aktif.forEach(s => {
+    const f = (best[s.id] || {})["final"];
+    if (f?.kuis !== undefined) nilaiFinal.push(f.kuis);
+  });
+
   $g("stat-grid").innerHTML = `
     <div class="stat-card"><div class="val">${aktif.length}</div><div class="lbl">👨‍🎓 siswa terdaftar (kelas terfilter)</div></div>
     <div class="stat-card"><div class="val">${aktif.length - belumMulai}</div><div class="lbl">✅ sudah mulai mengerjakan</div></div>
     <div class="stat-card"><div class="val">${semuaNilaiAkhir.length ? rata(semuaNilaiAkhir) : "–"}</div><div class="lbl">⭐ rata-rata nilai akhir kelas</div></div>
-    <div class="stat-card"><div class="val" style="color:var(--kuning)">${palingSulit ? palingSulit.m.ikon + " M" + palingSulit.m.nomor : "–"}</div><div class="lbl">🔍 modul paling sulit (praktik lulus paling sedikit: ${palingSulit ? palingSulit.selesai : "-"}/${aktif.length})</div></div>`;
+    <div class="stat-card"><div class="val" style="color:var(--kuning)">${palingSulit ? palingSulit.m.ikon + " M" + palingSulit.m.nomor : "–"}</div><div class="lbl">🔍 modul paling sulit (praktik lulus paling sedikit: ${palingSulit ? palingSulit.selesai : "-"}/${aktif.length})</div></div>
+    <div class="stat-card"><div class="val" style="color:var(--kuning)">${nilaiFinal.length ? rata(nilaiFinal) : "–"}</div><div class="lbl">🏁 rata-rata kuis akhir — ${nilaiFinal.length} dari ${aktif.length} siswa sudah ikut ujian terpadu</div></div>`;
 
   // ---- grafik per modul ----
   const ctx1 = $g("chart-1").getContext("2d");
@@ -187,9 +195,10 @@ function tampilkan({ listSiswa, best, listSubs, listKuis }) {
   });
 
   // ---- tabel rekap nilai ----
+  const labelModul = (mid) => mid === "final" ? "🏁 Akhir" : ("M" + (MODUL.find(m => m.id === mid)?.nomor ?? "?"));
   let head = `<thead><tr><th>Nama Siswa</th><th>NIS</th><th>Kelas</th>`;
   MODUL.forEach(m => head += `<th>⭐ Modul ${m.nomor}</th>`);
-  head += `<th>🔥 Rata Modul</th></tr></thead><tbody>`;
+  head += `<th>🏁 Kuis Akhir</th><th>🔥 Rata Modul</th></tr></thead><tbody>`;
   const rows = aktif.map(s => {
     let baris = `<tr><td>${escape(s.nama)}</td><td>${escape(s.nis || "-")}</td><td>${escape(s.kelas?.nama || "-")}</td>`;
     let angkanya = [];
@@ -201,6 +210,9 @@ function tampilkan({ listSiswa, best, listSubs, listKuis }) {
       baris += `<td class="angka ${ada ? (akhir >= 70 ? "v-hijau" : "v-merah") : ""}" title="praktik ${pk ?? "-"} | kuis ${qu ?? "-"}">${ada ? akhir : "–"}</td>`;
       if (ada) angkanya.push(akhir);
     });
+    const vf = (best[s.id] || {})["final"];
+    const adaF = vf?.kuis !== undefined;
+    baris += `<td class="angka ${adaF ? (vf.kuis >= 70 ? "v-hijau" : "v-merah") : ""}">${adaF ? vf.kuis : "–"}</td>`;
     const rerModul = angkanya.length ? (angkanya.reduce((a, b) => a + b, 0) / angkanya.length).toFixed(1) : "–";
     baris += `<td class="angka"><b>${rerModul}</b></td></tr>`;
     return baris;
@@ -213,13 +225,13 @@ function tampilkan({ listSiswa, best, listSubs, listKuis }) {
   const sNama = (id) => listSiswa.find(s => s.id === id)?.nama || "?";
 
   $g("tabel-subs").innerHTML = `<thead><tr><th>Waktu</th><th>Nama Siswa</th><th>Modul</th><th>Nilai (0-100)</th><th>Kode (potongan)</th></tr></thead><tbody>` +
-    subData.map(x => `<tr><td>${fmtWaktu(x.created_at)}</td><td>${escape(sNama(x.student_id))}</td><td>M${MODUL.find(m => m.id === x.module_id)?.nomor || "?"}</td>
+    subData.map(x => `<tr><td>${fmtWaktu(x.created_at)}</td><td>${escape(sNama(x.student_id))}</td><td>${labelModul(x.module_id)}</td>
       <td class="angka ${x.nilai >= 70 ? "v-hijau" : "v-merah"}">${x.nilai}</td>
       <td><code class="kecil-code">${escape((x.output || "").slice(0, 60))}</code></td></tr>`).join("") +
     (subData.length ? "" : `<tr><td colspan="5" class="muted">Belum ada praktik dikirim</td></tr>`) + `</tbody>`;
 
   $g("tabel-kuis").innerHTML = `<thead><tr><th>Waktu</th><th>Nama Siswa</th><th>Modul</th><th>Jawaban benar</th><th>Nilai</th></tr></thead><tbody>` +
-    kuiData.map(x => `<tr><td>${fmtWaktu(x.created_at)}</td><td>${escape(sNama(x.student_id))}</td><td>M${MODUL.find(m => m.id === x.module_id)?.nomor || "?"}</td>
+    kuiData.map(x => `<tr><td>${fmtWaktu(x.created_at)}</td><td>${escape(sNama(x.student_id))}</td><td>${labelModul(x.module_id)}</td>
       <td class="angka">${x.benar} / ${x.total}</td>
       <td class="angka ${x.nilai >= 70 ? "v-hijau" : "v-merah"}">${x.nilai}</td></tr>`).join("") +
     (kuiData.length ? "" : `<tr><td colspan="5" class="muted">Belum ada kuis dikerjakan</td></tr>`) + `</tbody>`;
@@ -234,7 +246,7 @@ function unduhCSV() {
   const aktif = filterAktif(listSiswa);
   let csv = "Nama;NIS;Kelas";
   MODUL.forEach(m => csv += `;M${m.nomor} Praktik;M${m.nomor} Kuis;M${m.nomor} Akhir`);
-  csv += "\n";
+  csv += ";Kuis Akhir\n";
   aktif.forEach(s => {
     csv += `${s.nama};${s.nis || "-"};${s.kelas?.nama || "-"}`;
     MODUL.forEach(m => {
@@ -243,6 +255,7 @@ function unduhCSV() {
       const akhir = ada ? Math.round(((b.praktik ?? 0) * 0.5 + (b.kuis ?? 0) * 0.5)) : "-";
       csv += `;${b.praktik ?? "-"};${b.kuis ?? "-"};${akhir}`;
     });
+    csv += `;${best[s.id]?.final?.kuis ?? "-"}`;
     csv += "\n";
   });
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));

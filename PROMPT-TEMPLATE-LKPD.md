@@ -188,6 +188,6 @@ Aturan materi:
 ---
 
 ### 📌 Catatan pemakaian (bukan bagian prompt)
-- ✅ **Contoh penerapan sudah jadi & live**: folder `lkpd-transformasi-geometri/` — LKPD Transformasi Geometri (Matematika Kelas XI), non-koding (kanvas koordinat + isian angka, tanpa Pyodide). URL: `https://rekizamasari.github.io/lkpdarraypython/lkpd-transformasi-geometri/`. Jadikan ini referensi bentuk nyata hasil template.
+- ✅ **Contoh penerapan sudah jadi & live**: repo mandiri [`lkpd-transformasi-geometri`](https://github.com/rekizamasari/lkpd-transformasi-geometri) — LKPD Transformasi Geometri (Matematika Kelas XI), non-koding (kanvas koordinat + isian angka, tanpa Pyodide). URL: `https://rekizamasari.github.io/lkpd-transformasi-geometri/`. Jadikan ini referensi bentuk nyata hasil template.
 - Untuk LKPD baru, cukup ubah bagian **1 (IDENTITAS)**, **5 (isi materi di data.js)**, **6 (starter & kriteria praktik)**, dan placeholder di **13** — arsitektur, database, auth, gerbang, kuis akhir, dashboard guru, deploy: semua menyesuaikan otomatis karena tidak mengandung topik spesifik.
 - Jika LKPD baru tidak memakai kode program (mata pelajaran non-koding), ganti spesifikasi editor Pyodide dengan "menjalankan aktivitas interaktif HTML/Canvas" dan ganti auto-check regex output dengan kriteria jawaban sederhana — biarkan bagian lain tetap.
